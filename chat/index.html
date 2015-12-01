@@ -1,0 +1,28 @@
+<html>
+  <head>
+    <title>Socket.io</title>
+
+    <script src="https://skyway.io/dist/0.3/peer.js"></script>
+    <script>
+
+
+      var peer = new Peer('123abc', { host: 'localhost', port: 9000, path:'/index', debug:true});
+
+//console.log(peer);
+      peer.on('open', function(id){
+        console.log(id);
+      });
+      
+     
+      /*var conn = peer.connect('xiTT4Srymt0Lnalj');
+      conn.send('hello');
+      conn.on('data', function(data) {
+        console.log(data);
+      })*/
+    </script>
+  </head>
+  <body>
+    
+
+  </body>
+</html>

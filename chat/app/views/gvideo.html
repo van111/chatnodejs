@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Group Video Call</title>
+    <link rel="stylesheet" type="text/css" href="/css/bootstrap.css">
+    <link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.css">
+    <script src="https://skyway.io/dist/0.3/peer.min.js"></script>
+    <script src="/js/multiparty.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+      }
+      #message {
+        width: 98%;
+        margin: 10px;
+        height: 100px;
+        display: inline-table;
+        background-color: #E9EFEF;
+      }
+      #streams {
+        margin-left: 10px;
+        height:770px;
+        overflow-y:scroll;
+        background-color: #DEE9F5;
+        /*position: absolute;
+        top: 10px;
+        margin-left: 200px;*/
+      }
+      .video{
+        margin: 0px 0px 0px 5px;
+        width: 300px;
+        border: 1px solid #000000;
+        border-radius: 10px;
+      }
+
+      .myvideo{
+        margin: 0px 0px 0px 5px;
+        width: 200px;
+        border: 1px solid #000000;
+        border-radius: 10px;
+      }
+      #streams .my-video {
+        -webkit-transform: scaleX(-1);
+        -o-transform: scaleX(-1);
+        -moz-transform: scaleX(-1);
+        transform: scaleX(-1);
+      }
+    </style>
+  </head>
+
+  <body style="background-color:#014051; color: #fff;">
+    <% include topmenu.html %>
+    <div class="container">
+      <div class="row">
+
+        <div class="col-md-3">
+          <div class="row">
+            <div id="myvid" class="text-center"></div>
+          </div>
+          <hr>
+          <h5>Online users:</h5>
+          <div id="user-list" style="height:500px; overflow-y:scroll;">
+          </div>
+        </div>
+
+        <div class="col-md-9">
+
+          <div class="row">
+            <div id="streams" class="list-inline"></div>
+            <p id="vid-id"></p>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="row">
+          <div id="message">
+            <form>
+              <input type="text" class="form-control" placeholder="Enter message...">
+            </form>
+            <p class="receive" style="word-break:break-word; height:200px; overflow-y:scroll;color:#000;">
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </body>
+
+  <script>
+    var multiparty;
+
+    multiparty = new MultiParty( {
+      "key": "14de24a3-13cd-4cc3-838e-315f561c4784",
+      "reliable": true
+    });
+
+    multiparty.on('my_ms', function(video) {
+      var vNode = MultiParty.util.createVideoNode(video);
+      vNode.setAttribute("class", "myvideo my-video");
+      console.log(video.src);
+      vNode.volume = 0;
+      $("#myvid").prepend(vNode).prepend('<p style="word-break:break-word;">My video id: '+video.id+'<p/>');
+    }).on('peer_ms', function(video) {
+      var vNode = MultiParty.util.createVideoNode(video);
+      vNode.setAttribute("class", "video my-video");
+      vNode.setAttribute("title", video.id);
+      $("#streams").prepend(vNode).prepend('<p id='+video.id+'>'+video.id+'<p/>');
+      $("#user-list").append('<p id='+video.id+'>'+video.id+'<p/>');
+    }).on('ms_close', function(peer_id) {
+      $("#"+peer_id).remove();
+    });
+
+    multiparty.on('message', function(mesg) {
+      $("p.receive").prepend('<strong>'+mesg.id+"</strong>: "+mesg.data + "<br>");
+    });
+
+
+    multiparty.start();
+
+    $("#message form").on("submit", function(ev) {
+      ev.preventDefault(); 
+      var $text = $(this).find("input[type=text]");
+      var data = $text.val();
+      if(data.length > 0) {
+        data = data.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        $("p.receive").prepend("<strong>You</strong>: "+data + "<br>");
+        multiparty.send(data);
+        $text.val("");
+      }
+    });
+ </script>
+</html>

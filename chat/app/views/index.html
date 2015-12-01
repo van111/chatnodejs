@@ -1,0 +1,50 @@
+<% include header.html %>
+<% include topmenu.html %>
+
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-md-2" >
+			<h3>Hi <font id='cuser'><%=user%></font> !</h3>
+			User id:<span id="cuid"><%=uid%></span>
+
+			<p><a href="/video">Click here for video call</a></p>
+			<p><a href="/gvideo">Click here for GROUP video call</a></p>
+		</div>
+		<div class="col-md-7 msg">
+			<div>
+				<textarea name="status" cols="40" rows="10" id="statusMsg" class="form-control message" style="height:62px; overflow:hidden;" placeholder="What's on your mind?"></textarea>
+			</div>
+			<div class="panel-footer">
+				<div class="row">
+		 			<div class="col-md-7">
+		 				<div class="form-group">
+							<input type="submit" name="submit" value="Post" class="btn btn-primary" id="postfeed">   
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div id="statFeed">
+			</div>
+
+		</div>
+		<div class="col-md-3">
+			<h4>Users</h4>
+			<ul class="list-group" id="users">
+				<% for(var i=0; i < data.length; i++) { %>
+					<li class="list-group-item" id="<%=data[i].id %>">
+						<span class="badge">
+						<% if (data[i].status == 1) { %>
+							Online
+						<% } else { %>
+							Offline
+						<% } %>
+						</span>
+						<span class="nameto"><%= data[i].username %></span>
+					</li>
+				<% } %>
+			</ul>
+		</div>
+	</div>
+</div>
+

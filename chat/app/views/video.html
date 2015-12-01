@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Video call</title>
+  <link rel="stylesheet" type="text/css" href="/css/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.css">
+	<script src="/js/jquery-2.1.4.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+	<script src="https://skyway.io/dist/0.3/peer.js"></script>
+	<script>
+		//"use strict";
+    		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        var socket = io.connect('http://localhost:3000');
+        var conn;
+        var rand = makeid();
+		   /* var peer = new Peer(
+	    		rand, { host: 'localhost', port: 9000, path:'/peerjs', debug:true}
+				);*/ 
+
+        var peer = new Peer(
+          {key: '14de24a3-13cd-4cc3-838e-315f561c4784',//debug: 3,
+          // Set a logging function:
+          //logFunction: function() {
+           // var copy = Array.prototype.slice.call(arguments).join(' ');
+           // $('.log').append(copy + '<br><br>');
+          //}
+        });
+
+		    peer.on('open', function(id){
+          $('#pid').text(id);
+          var userID = $('#userID').text();
+          socket.emit('savePeer', {peer:id, userID:userID});
+        });
+
+		    peer.on('call', function(call){
+          var r = confirm(call.peer+" wants to video call with you.");
+          
+          if (r == true) {
+            call.answer(window.localStream);
+            step3(call);
+          }
+		      
+		    });
+
+		    peer.on('error', function(err){
+		      alert(err.message);
+		      step2();
+		    });
+
+	      navigator.getUserMedia({audio: true, video: true}, function(stream){
+	        $('#myvid').prop('src', URL.createObjectURL(stream));
+          window.localStream = stream;
+          step2();
+      	}, function(){ 
+	      		$('#step1-error').show(); 
+        });
+
+        function makeid(){
+            var text = "";
+            var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            for( var i=0; i < 5; i++ )
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+            return text;
+        }
+
+      	function ConnectToPeer(data){
+          var peeruser = getpeeruser(data);
+          var call = peer.call(data, window.localStream);
+      		step3(call);
+          c = peer.connect(data);
+          c.on('open', function(){
+            connect(c);
+          });
+        };
+
+        function connect(c) {
+          $('#chat_area').show();
+           conn = c;
+          var peerUser = $('#their-id').text();
+          //$('#messages').empty().append('Now chatting with ' + conn.peer);
+          conn.on('data', function(data){
+            $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
+          });
+          conn.on('close', function(err){ alert(conn.peer + ' has left the chat.') });
+        }
+
+      	function step3 (call) {
+		      if (window.existingCall) {
+		        window.existingCall.close();
+		      }
+		      // Wait for stream on the call, then set peer video display
+		      call.on('stream', function(stream){
+		        $('#their-video').prop('src', URL.createObjectURL(stream));
+		      });
+		      // UI stuff
+		      window.existingCall = call;
+          getpeeruser(call.peer);
+		      call.on('close', step2);
+		      $('#step1, #step2').hide();
+		      $('#step3').show();
+		    }
+
+        function getpeeruser(call){
+          socket.emit('getpeer', {peer:call});
+          socket.on('showIndipeer', function(data){
+            $('#their-id').text(data.username);
+            $('#their-vid').text(data.username+"'s video");
+            socket.emit('returnPeerUser', {username: data.username});
+          });
+        }
+        
+
+		    function step2 () {
+		      $('#step1, #step3').hide();
+		      $('#step2').show();
+		    }
+
+
+        socket.emit('showPeer');
+          
+        socket.on('peerList', function(data){
+          var peerlist = '';
+          for(var cnt = 0;cnt < data.length;cnt++){
+            if ($('#pid').text() != data[cnt].peer && data[cnt].peer != ''){
+              peerlist += "<dt class='list-unstyled'> Video Call with: ("+data[cnt].username+") <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data[cnt].peer+"</a></dt>";
+            }
+          }
+          $('#peer-list').html(peerlist);
+        });
+        
+		    window.onload = function() {
+
+          peer.on('connection', connect);
+
+  				/*$('#showUser').click(function(){
+            socket.emit('showPeer');
+            socket.on('peerList', function(data){
+              var peerlist = '';
+              for(var cnt = 0;cnt < data.length;cnt++){
+                if ($('#pid').text() != data[cnt].peer && data[cnt].peer != ''){
+                  peerlist += "<dt class='list-unstyled'> Video Call with: ("+data[cnt].username+") <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data[cnt].peer+"</a></dt>";
+                }
+              }
+              $('#peer-list').html(peerlist);
+            });
+  					peer.listAllPeers(function(list){
+  					var peerlist = '';
+  				    for(var cnt = 0;cnt < list.length;cnt++){
+  				    	if ($('#pid').text() != list[cnt]){
+  				    		peerlist += "<dt class='list-unstyled'> Video Call with: <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+list[cnt]+"</a></dt>";
+  				    	}
+  				    }
+  				    $('#peer-list').html(peerlist);
+  					});
+  				});*/
+
+  				$('#end-call').click(function(){
+                var r = confirm('Are you sure you want to end your');
+            
+                if (r == true) {
+                  window.existingCall.close();
+                  step2();
+                  $('#step4').hide();
+                  $('#their-vid').text('Waiting for other user...');
+                }
+  	    	});
+
+          // Send a chat message
+          $('#send').click(function(){
+            var msg = $('#text').val();
+            conn.send(msg);
+
+            $('#messages').append('<br>You:<br>' + msg);
+            $('#text').val('');  
+          });
+
+          $('#text').on('keyup', function(){
+            if (event.which == 13){
+              var msg = $('#text').val();
+              conn.send(msg);
+
+              $('#messages').prepend('<br><strong style="color:#006699; word-break: break-word;">You:<strong>' + msg);
+              $('#text').val(''); 
+            }
+          });
+			};
+	</script>
+</head>
+<body style="background-color:#014051; color: #fff;">
+<% include topmenu.html %>
+<div class="container">
+  <div class="row">
+
+    <div class="col-md-4" style="background-color:#fff; height:581px;">
+
+      <div class="row">
+        <p  id="pid" class="bg-primary" style="padding:10px"></p>
+        <h3 style="color:#000; padding-left:10px;">My video (<font id="userID"><%=user%></font>)</h3>
+        <video id="myvid" style="width: 100%;" muted="true" autoplay></video>
+      </div>
+
+      
+
+    </div>
+
+    <div class="col-md-7" style="background-color:#fff; margin-left:10px; height:581px;">
+      <div class="row">
+        <p  id="their-vid" class="bg-primary" style="padding:10px">Waiting for other user...</p>
+        <video id="their-video" style="width: 100%; padding-bottom:10px;" muted="true" autoplay></video>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4" style="margin-top:15px; padding-left:0px; padding-right:0px;">
+          <button id="showUser" class="btn btn-primary" type="submit">Show list of active users</button>
+          <hr>
+          <dl id="peer-list"></dl>
+
+          <div id="step3" >
+            <p>Currently in call with <span id="their-id">...</span></p>
+            <p><a href="#" class="pure-button pure-button-error" id="end-call">End call</a></p>
+          </div>
+        </div>
+
+        <div class="col-md-7" style="margin-top:15px;" id="step4">
+          <div id="chat_area" style="display: none;">
+            <input type="text" id="text" placeholder="Enter message" class="form-control">
+            <!-- <input type="button" value="Send" id="send" class="btn btn-default"> -->
+            <div id="messages" style="word-break: break-word; height:350px; overflow-y: scroll; background-color:#ccc; padding:5px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+</div>
+
+<div class="log">
+</div>
+</body>
+</html>

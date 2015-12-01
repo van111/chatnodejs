@@ -1,0 +1,79 @@
+<% include header.html %>
+<% include topmenu.html %>
+<script>
+var socket = io.connect('http://localhost:3000');
+   // on connection to server, ask for user's name with an anonymous callback
+    socket.on('connect', function(){
+        var username = $('#name').val();
+        socket.emit('adduser', {username:username});
+    });
+
+    socket.on('updatechat', function (username, data) {
+        $( "#content" ).append('<b>'+username + ':</b> ' + data + '<br>');
+    });
+
+    socket.on('updaterooms', function(rooms, current_room) {
+        $('#rooms').empty();
+        $.each(rooms, function(key, value) {
+            if(value == current_room){
+                $('#rooms').append('<div>' + value + '</div>');
+            }
+            else {
+                $('#rooms').append('<div><a href="#" onclick="switchRoom(\''+value+'\')">' + value + '</a></div>');
+            }
+        });
+    });
+
+    $(function(){
+        $('#send').click( function() {
+            var message = $('#field').val();
+            $('#field').val('');
+            socket.emit('sendchat', message);
+        });
+    });
+
+
+</script>
+
+<div style="float:left;width:100px;border-right:1px solid black;height:300px;padding:10px;overflow:scroll-y;">
+	<b>ROOMS</b>
+	<div id="rooms"></div>
+</div>
+<div class="container">
+	<div class="row">
+		<div class="col-md-5">
+		    <div class="panel panel-primary">
+		        <div class="panel-heading">
+		            <span class="glyphicon glyphicon-comment"></span> Chat
+		        </div>
+		        <div id="content" class="panel-body" style="overflow-y: scroll; height: 300px;">
+		            <ul class="chat">
+		            	<% for(var i=0; i < data.length; i++) { %>
+		                    <li class="left clearfix"><span class="chat-img pull-left">
+		                    </span>
+		                        <div class="chat-body clearfix">
+		                            <div class="header">
+		                                <strong class="primary-font"><%= data[i].username %></strong> 
+		                            </div>
+		                            <p>
+		                               <%= data[i].text %>
+		                            </p>
+		                        </div>
+		                    </li>
+		                <% } %>
+		            </ul>
+		        </div>
+		        <div class="panel-footer">
+		            <div class="input-group">
+		            	<input id="name" class="form-control input-sm" placeholder="Name" value="<%=user%>" disabled=false>
+		                <input id="field" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+		                <span class="input-group-btn">
+		                    <button class="btn btn-warning btn-sm" id="send">
+		                        Send</button>
+		                </span>
+		            </div>
+		        </div>
+		    </div>
+		</div>
+	</div>
+</div>

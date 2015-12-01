@@ -1,0 +1,39 @@
+<div class="container">
+	<div class="row">
+		<div class="col-md-5">
+		    <div class="panel panel-primary">
+		        <div class="panel-heading">
+		            <span class="glyphicon glyphicon-comment"></span> <%=userto%>
+		        </div>
+		        <div id="content" class="panel-body" style="overflow-y: scroll; height: 300px;">
+		            <ul class="chat">
+		            	<% for(var i=0; i < data.length; i++) { %>
+		                    <li class="left clearfix"><span class="chat-img pull-left">
+		                    </span>
+		                        <div class="chat-body clearfix">
+		                            <div class="header">
+		                                <strong class="primary-font"><%= data[i].username %></strong> 
+		                            </div>
+		                            <p>
+		                               <%= data[i].message %>
+		                            </p>
+		                        </div>
+		                    </li>
+		                <% } %>
+		            </ul>
+		        </div>
+		        <div class="panel-footer">
+		            <div class="input-group">
+		            	<input id="name" class="form-control input-sm" placeholder="Name" value="<%=userfrom%>" disabled=false>
+		                <input id="privatemsg" type="text" class="form-control input-sm" placeholder="Type your message here..." />
+		                <span class="input-group-btn">
+		                    <button class="btn btn-warning btn-sm" id="send">
+		                        Send</button>
+		                </span>
+		            </div>
+		        </div>
+		    </div>
+		</div>
+	</div>
+</div>
+
