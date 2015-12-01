@@ -55,7 +55,7 @@ router.get("/", function(req, res){
         id: {ne : sess.loggedin.id}
       }
     }).then(function(result) {
-      if (result.username) {
+      if (result) {
         res.render('index', {data:result});
       } else {
         res.render("login");
@@ -102,6 +102,7 @@ router.route('/video')
 
   .get(function(req, res){
     if (sess.loggedin.username) {
+      //console.log(sess.loggedin);
       res.render('video', {user: sess.loggedin.username});
     } else {
       res.render("/login");
@@ -234,6 +235,7 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('savePeer', function (data) {
       if (data) {
+        console.log(data);
         chat.users.findOne({
           where: {
             username:data.userID
@@ -265,23 +267,6 @@ io.sockets.on('connection', function (socket) {
     }).then(function(result){
       socket.emit('showIndipeer', result);
     });
-  });
-
-  socket.on('deletePeer', function(data){
-    if (data) {
-        chat.users.findOne({
-          where: {
-            username:data.userID
-          }
-              
-        }).then(function(result){
-          result.updateAttributes({
-              username : data.userID,
-              peer : ''
-          });
-            console.log('peer updated');
-        });
-      }  
   });
 
 

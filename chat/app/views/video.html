@@ -30,6 +30,7 @@
           $('#pid').text(id);
           var userID = $('#userID').text();
           socket.emit('savePeer', {peer:id, userID:userID});
+          socket.emit('showPeer');
         });
 
 		    peer.on('call', function(call){
@@ -79,11 +80,15 @@
           $('#chat_area').show();
            conn = c;
           var peerUser = $('#their-id').text();
+          var userID = $('#userID').text();
           //$('#messages').empty().append('Now chatting with ' + conn.peer);
           conn.on('data', function(data){
             $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
           });
-          conn.on('close', function(err){ alert(conn.peer + ' has left the chat.') });
+          conn.on('close', function(err){
+            alert(peerUser + ' has left the chat.');
+            //socket.emit('deletePeer', {userID: userID});
+          });
         }
 
       	function step3 (call) {
@@ -117,9 +122,6 @@
 		      $('#step2').show();
 		    }
 
-
-        socket.emit('showPeer');
-          
         socket.on('peerList', function(data){
           var peerlist = '';
           for(var cnt = 0;cnt < data.length;cnt++){
@@ -134,37 +136,20 @@
 
           peer.on('connection', connect);
 
-  				/*$('#showUser').click(function(){
-            socket.emit('showPeer');
-            socket.on('peerList', function(data){
-              var peerlist = '';
-              for(var cnt = 0;cnt < data.length;cnt++){
-                if ($('#pid').text() != data[cnt].peer && data[cnt].peer != ''){
-                  peerlist += "<dt class='list-unstyled'> Video Call with: ("+data[cnt].username+") <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data[cnt].peer+"</a></dt>";
-                }
-              }
-              $('#peer-list').html(peerlist);
-            });
-  					peer.listAllPeers(function(list){
-  					var peerlist = '';
-  				    for(var cnt = 0;cnt < list.length;cnt++){
-  				    	if ($('#pid').text() != list[cnt]){
-  				    		peerlist += "<dt class='list-unstyled'> Video Call with: <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+list[cnt]+"</a></dt>";
-  				    	}
-  				    }
-  				    $('#peer-list').html(peerlist);
-  					});
-  				});*/
+          
 
   				$('#end-call').click(function(){
                 var r = confirm('Are you sure you want to end your');
-            
+                var userID = $('#userID').text();
                 if (r == true) {
                   window.existingCall.close();
                   step2();
                   $('#step4').hide();
                   $('#their-vid').text('Waiting for other user...');
+
+                  //socket.emit('deletePeer', {userID: userID});
                 }
+
   	    	});
 
           // Send a chat message
@@ -214,7 +199,7 @@
     <div class="container">
       <div class="row">
         <div class="col-md-4" style="margin-top:15px; padding-left:0px; padding-right:0px;">
-          <button id="showUser" class="btn btn-primary" type="submit">Show list of active users</button>
+          <h4>Currently online users:</h4>
           <hr>
           <dl id="peer-list"></dl>
 
