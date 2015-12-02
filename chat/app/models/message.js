@@ -17,6 +17,7 @@ exports.users = seq.define('users',
 	username: Sequelize.STRING(250),
 	password: Sequelize.STRING(255),
 	peer: Sequelize.STRING(25),
+	room: Sequelize.STRING(255),
 	status: Sequelize.INTEGER
 });
 
