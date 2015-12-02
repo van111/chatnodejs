@@ -1,6 +1,7 @@
 var express   = require('express');
 var session   = require('express-session');
 var cookieParser = require('cookie-parser');
+var session = require('client-sessions');
 var fs        = require('fs');
 var mysql     = require("mysql");
 var app       = express();
@@ -18,9 +19,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(session({
-    secret: 'test session',
-    resave: false,
-    saveUninitialized: true
+  cookieName: 'session',
+  secret: 'random_string_goes_here',
+  duration: 30 * 60 * 1000,
+  activeDuration: 5 * 60 * 1000,
 }));
 
 var router    = express.Router(); 
@@ -54,7 +56,7 @@ io.listen(app.listen(port)); //listen to port
 router.get('/setsession',function(req,res){
     sess=req.session;
     sess.sessdata = {};
-    sess.sessdata.email= "test";
+    sess.sessdata.email= "inaam";
     sess.sessdata.pass= "inaam1234";
     var data = {
         "Data":""
@@ -132,6 +134,7 @@ router.post("/", function(req, res){
             username: {ne : sess.loggedin.username}
           }
         }).then(function(result) {
+          console.log(sess);
           res.render('index', {data:result, user : sess.loggedin.username, uid: sess.loggedin.username});
         });
       } else {
@@ -208,9 +211,8 @@ router.get("/conversation", function(req, res){
 });
 
 router.get("/logout", function(req, res){
-  req.session.destroy(function(){
-    res.redirect('/');
-  });
+  req.session.reset();
+  res.redirect('/');
 });
 
 
@@ -231,7 +233,7 @@ peerApp.use('/peerjs', ExpressPeerServer(peerServer, options));
 peerServer.listen(peerPort);
 
 io.sockets.on('connection', function (socket) {
-console.log(socket.id);
+
   socket.on('showpm', function (data) {
     var toid = data.toid;
     var cuid = data.cuid;
