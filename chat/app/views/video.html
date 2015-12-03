@@ -33,8 +33,6 @@
           if (!window.existingCall) {
             var r = confirm(call.peer+" wants to video call with you."); 
             if (r == true) {
-              var dt = new Date();
-              console.log(dt);
               call.answer(window.localStream);
               step3(call);
             } else {
@@ -80,9 +78,11 @@
               window.existingCall.close();
               window.existingCall = null;
               step2();
+              //console.log(peer.close);
               $('#step4').hide();
               $('#their-vid').text('Waiting for other user...');
               showconvo();
+              $('#messages').html('');
               $('#myModal').modal('show');
             }
           },1000);
@@ -114,7 +114,6 @@
             $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
           });
           conn.on('close', function(err){
-            alert('Call has ended');
             $('#show-time').html(tlimit);
             clearInterval(interval);
             window.existingCall.close();
@@ -135,11 +134,10 @@
             c = peer.connect(data);
             socket.emit('chatrand');
             socket.on('showrand', function(data){
-              console.log(data)
               $('#rand').html(data.rand);
             });
             
-            
+            console.log(peer.connections);
             c.on('open', function(){
               connect(c);
             });
@@ -170,7 +168,6 @@
           socket.emit('switchRoom', room);
           socket.emit('showPeer');
         }
-        
 
 		    function step2 () {
 		      $('#step1, #step3').hide();
