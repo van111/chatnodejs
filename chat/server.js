@@ -106,8 +106,8 @@ router.get("/", function(req, res){
         id: {ne : sess.loggedin.id}
       }
     }).then(function(result) {
-      if (result.username) {
-        res.render('index', {data:result});
+      if (result) {
+        res.render('index', {data:result, user : sess.loggedin.username, uid: sess.loggedin.username});
       } else {
         res.render("login");
       }
@@ -134,7 +134,6 @@ router.post("/", function(req, res){
             username: {ne : sess.loggedin.username}
           }
         }).then(function(result) {
-          console.log(sess);
           res.render('index', {data:result, user : sess.loggedin.username, uid: sess.loggedin.username});
         });
       } else {
@@ -188,7 +187,6 @@ router.route('/regist')
       where : {username:username}
     }).then(function(result){
       if (result) {
-        console.log('username taken');
         res.send('username taken');
       } else {
         chat.users.create({
@@ -241,8 +239,10 @@ io.sockets.on('connection', function (socket) {
 
     chat.pmessages.findAll({
       where: {
-        $or: [{uid:cuid,toid: toid}, {toid: cuid, uid:toid}]
-      }
+        $or: [{uid:cuid,toid: toid}, {toid: cuid, uid:toid}],
+
+      },
+      order: [["updatedAt","DESC"]]
           
     }).then(function(result) {
       io.sockets.emit('dispConvo', {result:result, toid:toid, cuid:cuid, touser: touser});  
@@ -256,6 +256,7 @@ io.sockets.on('connection', function (socket) {
     var toid = data.toid;
     var cuid = data.cuid;
     var message = data.message;
+    var chatrand = data.chatrand;
 
     io.sockets.emit('message', data);
 
@@ -263,8 +264,19 @@ io.sockets.on('connection', function (socket) {
       chat.pmessages.create({
         uid: cuid,
         toid: toid,
-        message: message
+        message: message,
+        chatrand: chatrand
       })
+    }
+  });
+
+  socket.on('savetochathistory', function (data){
+    var rand = data.chatrand;
+
+    if (data) {
+      chat.hashchats.create({
+        rand:rand
+      });
     }
   });
 
@@ -358,16 +370,32 @@ io.sockets.on('connection', function (socket) {
       }  
   });
 
+  //create room
+  socket.on('create', function(room) {
+    if(rooms.indexOf(room)==-1){
+      rooms.push(room);
+      io.sockets.emit('updaterooms', rooms, socket.room);
+    } else {
+      console.log('exist');
+    }
+  });
+
+  //sort room
+  socket.on('sortroom', function(){
+    rooms.sort();
+    socket.emit('updaterooms', rooms, socket.room);
+  });
+
   //join room
   socket.on('joinUser', function(data){
     var username = data.username;
     socket.username = username;
-    socket.room = 'room1';
+    //socket.room = 'room1';
     usernames[username] = username;
-    socket.join('room1');
-    socket.emit('updatechat', 'SERVER', 'you have connected to room1');
-    socket.broadcast.to('room1').emit('updatechat', 'SERVER', username + ' has connected to this room');
-    socket.emit('updaterooms', rooms, 'room1');
+    //socket.join('room1');
+    //socket.emit('updatechat', 'SERVER', 'you have connected to room1');
+    //socket.broadcast.to('room1').emit('updatechat', 'SERVER', username + ' has connected to this room');
+    socket.emit('updaterooms', rooms, '');
     socket.emit('showPeer');
     chat.users.findOne({
       where: {
@@ -423,6 +451,11 @@ io.sockets.on('connection', function (socket) {
           console.log('peer updated');
       });
     }
+  });
+
+  socket.on('chatrand', function(){
+    var rand = Math.round((Math.pow(36, 5 + 1) - Math.random() * Math.pow(36, 5))).toString(36).slice(1);   
+    socket.emit('showrand', {rand:rand});
   });
 
 });

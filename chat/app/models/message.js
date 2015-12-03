@@ -27,6 +27,7 @@ exports.pmessages = seq.define('pmessages',
 	uid: Sequelize.STRING,
 	toid: Sequelize.STRING,
 	message: Sequelize.STRING,
+	chatrand: Sequelize.STRING,
 	createdAt: Sequelize.DATE,
 	updatedAt: Sequelize.DATE,
 });
@@ -35,6 +36,13 @@ exports.newsfeeds = seq.define('newsfeeds',{
 	id: {type: Sequelize.INTEGER, primaryKey: true},
 	message: Sequelize.STRING,
 	username: Sequelize.STRING,
+	createdAt: Sequelize.DATE,
+	updatedAt: Sequelize.DATE,
+});
+
+exports.hashchats = seq.define('hashchats',{
+	id: {type: Sequelize.INTEGER, primaryKey: true},
+	rand: Sequelize.STRING,
 	createdAt: Sequelize.DATE,
 	updatedAt: Sequelize.DATE,
 });
