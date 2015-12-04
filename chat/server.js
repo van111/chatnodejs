@@ -99,7 +99,6 @@ router.get('/savesession',function(req,res){
 
 /*index get*/
 router.get("/", function(req, res){
-  console.log(sess);
   if (sess.loggedin) {
     chat.users.findAll({
       where:{  
@@ -435,10 +434,10 @@ io.sockets.on('connection', function (socket) {
     if (socket.username) {
       delete usernames[socket.username];
       io.sockets.emit('updateusers', usernames);
-      socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected');
+      socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected from the server');
       socket.leave(socket.room);
 
-      chat.users.findOne({
+      /*chat.users.findOne({
         where: {
           username:socket.username
         } 
@@ -449,13 +448,85 @@ io.sockets.on('connection', function (socket) {
             room : ''
         });
           console.log('peer updated');
-      });
+      });*/
     }
   });
 
-  socket.on('chatrand', function(){
-    var rand = Math.round((Math.pow(36, 5 + 1) - Math.random() * Math.pow(36, 5))).toString(36).slice(1);   
-    socket.emit('showrand', {rand:rand});
+  socket.on('discon', function(){
+    delete usernames[socket.username];
+    io.sockets.emit('updateusers', usernames);
+    socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has ended the chat');
+    socket.leave(socket.room);
+
+    chat.users.findOne({
+      where: {
+        username:socket.username
+      } 
+    }).then(function(result){
+      result.updateAttributes({
+          username : socket.username,
+          peer : '',
+          room : ''
+      });
+        console.log('peer updated');
+    });
+  });
+
+  socket.on('checkIfDiscon', function(data){
+    var username = data.username;
+
+    //check if got peer
+    chat.users.findOne({
+      where: {
+        username: username
+      } 
+    }).then(function(result){
+      if (result.peer) {
+        socket.emit('reconnectTopeer', result);
+        socket.broadcast.emit('updatechat', 'SERVER', data.username + ' is reconnecting to the server');
+        socket.join(result.room);
+      }
+    });
+  });
+
+  socket.on('saveDisconPeer', function(data){
+    var peer = data.peer;
+    var host = data.hostid;
+
+    chat.users.findOne({
+      where: {
+        peer: host
+      }
+    }).then(function(result){
+      console.log(result);
+      result.updateAttributes({
+        peer: peer
+      });
+    });
+  });
+
+  socket.on('updateChatTime', function(){
+    /*chat.hashchats.findOne({
+      where: {
+        peer: host
+      }
+    }).then(function(result){
+      console.log(result);
+      result.updateAttributes({
+        peer: peer
+      });
+    });*/
+  })
+
+  socket.on('giveChatToken', function(data){
+    var chatrand = data;
+
+    chat.hashchats.create({
+      rand: chatrand
+    }).then(function(result){
+      io.sockets.emit('getToken', result.rand);
+    });
+
   });
 
 });

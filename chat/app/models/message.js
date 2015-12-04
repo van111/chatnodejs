@@ -1,5 +1,5 @@
 var Sequelize = require('sequelize');
-var seq = new Sequelize('chat', 'root', '', 'localhost');
+var seq = new Sequelize('chat', 'root', '', 'localhost',{ timezone: '+08:00' });
 
 exports.connection = seq;
 
