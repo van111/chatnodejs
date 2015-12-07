@@ -12,7 +12,7 @@
 	<script>
 		//"use strict";
     		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-        var host = '192.168.0.167'
+        var host = 'localhost';
         var socket = io.connect('http://'+host+':3000');
         var conn;
         var tlimit = '01:10';
@@ -20,23 +20,22 @@
         var interval = '';
         var token = '';
         var reconPeer = '';
-  		  var peer = new Peer(
-	    		rand, { host: host, port: 9000, path:'/peerjs'}//, debug:true}
-				);
+  		  var peer = new Peer( { host: host, port: 9000, path:'/peerjs'} );
 
-		    peer.on('open', function(id){
+        //check peer
+        peer.on('open', function(id){
           $('#pid').text(id);
           var userID = $('#userID').text();
-          socket.emit('savePeer', {peer:id, userID:userID});
-          socket.emit('showPeer');
+          socket.emit('savePeer', {peer:id, userID:userID}); //save peer id
+          socket.emit('showPeer');                           //show list of peer id
         });
 
-        peer.on('call', function(call){
+        peer.on('call', function(call){ //recievers vid
           if (!window.existingCall) {
             var r = confirm(call.peer+" wants to video call with you."); 
             if (r == true) {
               call.answer(window.localStream);
-              step3(call);
+              process(call);
             } else {
               $('#step4').hide();
               return false;
@@ -44,208 +43,52 @@
           }
         });
 
-		    peer.on('error', function(err){
-		      alert(err.message);
-		      step2();
-		    });
+        peer.on('error', function(err){
+          alert(err.message);
+        });
 
-	      navigator.getUserMedia({audio: true, video: true}, function(stream){
-	        $('#myvid').prop('src', URL.createObjectURL(stream));
+        navigator.getUserMedia({audio: true, video: true}, function(stream){
+          $('#myvid').prop('src', URL.createObjectURL(stream));
           window.localStream = stream;
-          step2();
-      	}, function(){ 
+          //step2();
+        }, function(){ 
           $('#step1-error').show(); 
         });
 
-        function timeLimit(action){
-          if (!interval) {
-            interval = setInterval(function(){
-              var timer = $("b[id=show-time]").html().split(':');
-              var minutes = parseInt(timer[0],10);
-              var seconds = parseInt(timer[1],10);
-              --seconds;
-              minutes = (seconds < 0) ? --minutes : minutes;
-              if (minutes < 0 ) clearInterval(interval);
-              seconds = (seconds < 0) ? 59 : seconds;
-              seconds = (seconds < 10) ? '0' + seconds : seconds;
-              minutes = (minutes < 10) ?  '0' + minutes : minutes;
-
-              $('#show-time').html(minutes + ':' + seconds);
-              if((seconds == 0 && minutes == 0) || action == 'stop'){
-                alert('Call has ended');
-                socket.emit('savetochathistory', {chatrand:token});
-                socket.emit('updateChatTime');
-                $('#show-time').html(tlimit);
-                clearInterval(interval);
-                window.existingCall.close();
-                window.existingCall = null;
-                step2();
-                $('#step4').hide();
-                $('#their-vid').text('Waiting for other user...');
-                showconvo();
-                $('#messages').html('');
-                $('#myModal').modal('show');
-              }
-            },1000);
-          }
-          
-        }
-
-        function makeid(){
-            var text = "";
-            var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-            for( var i=0; i < 5; i++ )
-                text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-            return text;
-        }
-
-      	function ConnectToPeer(data){
-          $('#welcomeModal').modal('hide');
-          var peeruser = getpeeruser(data);
-          
-          var call = peer.call(data, window.localStream);
-
-          socket.emit('giveChatToken', rand);
-          
-      		step3(call, data);
-        };
-
-        function connect(c) {
-          $('#chat_area').show();
-          conn = c;
-          var peerUser = $('#their-id').text();
-
-          conn.on('data', function(data){
-            $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
-          });
-          conn.on('close', function(err){
-            
-            var peerID = conn.peer;
-            window.existingCall.close();
-            window.existingCall = null;     
-            socket.emit('updateChatTime');
-            socket.emit('saveDisconPeer',{peer: peer.id, hostid: peerID})
-            console.log(peer.id);
-            console.log(peerID+" --- "+peer.id);
-            step2();
-            $('#step4').hide();
-            alert(peerUser + ' has left the chat.');
-          });
-        }
-
-      	function step3 (call, data) {          
-          var settimmer = 0;
-		      if (window.existingCall) {
-            alert('currently in call');
-		      } else {
-
-            c = peer.connect(data);
-            
-            c.on('open', function(){
-              connect(c);
-            });
-
-            call.on('stream', function(stream){
-              timeLimit();
-              $('#their-video').prop('src', URL.createObjectURL(stream));
-            });
-
-            socket.on('getToken', function(data){
-              token = data;
-            });
-            
-            window.existingCall = call;
-            getpeeruser(call.peer);
-            call.on('close', step2);
-            $('#step1, #step2').hide();
-            $('#step3, #step4').show();
-          }
-		    }
-
-        function getpeeruser(call){
-          socket.emit('getpeer', {peer:call});
-          socket.on('showIndipeer', function(data){
-            $('#their-id').text(data.username);
-            $('#their-vid').text(data.username+"'s video");
-            socket.emit('returnPeerUser', {username: data.username});
-          });
-        }
-
-        function switchRoom(room){
-          socket.emit('switchRoom', room);
-          socket.emit('showPeer');
-        }
-
-		    function step2 () {
-		      $('#step1, #step3').hide();
-		      $('#step2').show();
-          window.existingCall = null;
-		    }
-
-        function showconvo() {
-          var peerUser = $('#their-id').text();
-          var userID = $('#userID').text();
-          socket.emit('showpm', { toid : peerUser, cuid: userID});
-
-          socket.on('dispConvo', function(data){
-            var convo = '';
-            var userID = $('#userID').text();
-            var max = '0';
-
-            for(var i=0; i < data.result.length; i++){
-              var date = new Date(data.result[i].updatedAt);
-              d = date.getDay();
-              d = d-1;
-              if ((d) != max) {
-                max = d;
-                convo += '<br><i style="color:#ccc;">---------------'+date.getFullYear()+'-'+(date.getMonth()+1)+'-'+d+'-----------------</i><br>'
-              }
-              if (data.result[i].uid != userID && data.result[i] != undefined) {
-                convo += '<br><div style="float:left;"><strong style="color:#000; word-break: break-word;">'+data.result[i].uid+':</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';
-              } else {
-                convo += '<br><div style="float:left;"><strong style="color:#006699; word-break: break-word;">You:</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';  
-              }
-            }
-            $( "#their-div" ).html( convo );
-            
-          });
-        }
+        //socket======================================================================================================================================================
 
         socket.on('connect', function(){
           var username = $('#userID').text();
           socket.emit('joinUser', {username:username});
-          socket.emit('checkIfDiscon', {username:username}); 
+          socket.emit('checkIfDiscon', {username:username});
 
           socket.on('reconnectTopeer', function(data){
             var peerID = data.peer;
             var peerlist = '';
             reconPeer = data.peer;
-            peerlist = "<dt class='list-unstyled'> Do you want to reconnect? <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data.peer+"</a></dt>";
-            $('#model-content').html(peerlist);
-            $('#welcomeModal').modal('show');
-          });     
+            window.existingCall = null;  
+            ConnectToPeer(reconPeer);            
+          });
         });
-
-
 
         //notification
         socket.on('updatechat', function (username, data) {
           $('#notification').prepend('<b>'+username + ':</b> ' + data + '<br>');
         });
 
+        //display rooms
         socket.on('updaterooms', function(rooms, current_room) {
           $('#rooms').empty();
           $.each(rooms, function(key, value) {
             if(value == current_room){
               $('#rooms').append('<div style="color:#cc6600;">' + value + '</div>');
             } else {
-              $('#rooms').append('<div><a href="#" onclick="switchRoom(\''+value+'\')">' + value + '</a></div>');
+              $('#rooms').append('<div><a href="javascript:void(0);" onclick="switchRoom(\''+value+'\')">' + value + '</a></div>');
             }
           });
         });
 
+        //show list of peer ID
         socket.on('peerList', function(data){
           var peerlist = '';
           for(var cnt = 0;cnt < data.length;cnt++){
@@ -254,33 +97,25 @@
               peerlist += "<dt class='list-unstyled'> Video Call with: ("+data[cnt].username+") <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data[cnt].peer+"</a></dt>";
             }
           }
-
           $('#peer-list').html(peerlist);
         });
+
+        //onload events===============================================================================================================================================
         
 		    window.onload = function() {
-
           peer.on('connection', connect);
 
-          var username = $('#userID').text();
-
           $('#show-time').html(tlimit);
-          $('#chat_area, #btnhistory').hide();
-          $('#welcomeModal').modal('show');
 
-  				$('#end-call').click(function(){
-            var r = confirm('Are you sure you want to end your call');
-            var userID = $('#userID').text();
-            if (r == true) {
-              socket.emit('discon');
-              window.existingCall.close();
-              $('#show-time').html(tlimit);
-              clearInterval(interval);
-              step2();
-              $('#step4').hide();
-              $('#their-vid').text('Waiting for other user...');
-            }
-  	    	});
+          $('#roombutton').click(function(){
+            var name = $('#roomname').val();
+            $('#roomname').val('');
+            socket.emit('create', name)
+          });
+
+          $('#sortroom').click(function(){
+            socket.emit('sortroom');
+          });
 
           // Send a chat message
           $('#send').click(function(){
@@ -315,7 +150,134 @@
               
             }
           });
-			};
+        };
+
+        //functions====================================================================================================================================================
+
+        function connect(c){ //recieved connection
+          var peerUser = $('#their-id').text();
+          var username = $('#userID').text();
+          conn = c;          
+
+          conn.on('data', function(data){
+            $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
+          }); 
+
+          conn.on('close', function(){ //if connection is close or window close
+            var peerID = conn.peer;
+            window.existingCall.close();
+            window.existingCall = null;     
+            socket.emit('updateChatTime', token);
+            //socket.emit('saveDisconPeer',{peer: peer.id, hostid: peerID, token: token, status:9});
+            socket.emit('peerConnections', {peer1:username,peer2:peerUser,status:'disconnected'});
+            alert(peerID + ' has left the chat.');
+          });
+        }
+
+        function ConnectToPeer(data){ //host
+          var call = peer.call(data, window.localStream);
+          if (window.existingCall) {
+            alert('currently in call');
+          } else {
+            process(call,data);
+            socket.emit('giveChatToken', rand);
+          }
+        }
+
+        function process(call, data){
+          conn = peer.connect(data); //connecting to peer
+          conn.on('open', function(){
+            connect(conn);
+          });
+
+          call.on('stream', function(stream){ //get video
+            timeLimit();
+            $('#their-video').prop('src', URL.createObjectURL(stream));
+          });
+          window.existingCall = call;
+
+          socket.on('getToken', function(data){
+              token = data;
+          });
+        }
+
+        function makeid(){
+          var text = "";
+          var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+          for( var i=0; i < 5; i++ )
+              text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+          return text;
+        }
+
+        function switchRoom(room){
+          socket.emit('switchRoom', room);
+          socket.emit('showPeer');
+        }
+
+        function timeLimit(action){
+          if (!interval) {
+            interval = setInterval(function(){
+              var timer = $("b[id=show-time]").html().split(':');
+              var minutes = parseInt(timer[0],10);
+              var seconds = parseInt(timer[1],10);
+              --seconds;
+              minutes = (seconds < 0) ? --minutes : minutes;
+              if (minutes < 0 ) clearInterval(interval);
+              seconds = (seconds < 0) ? 59 : seconds;
+              seconds = (seconds < 10) ? '0' + seconds : seconds;
+              minutes = (minutes < 10) ?  '0' + minutes : minutes;
+
+              $('#show-time').html(minutes + ':' + seconds);
+              if((seconds == 0 && minutes == 0) || action == 'stop'){
+                alert('Call has ended');
+                socket.emit('savetochathistory', {chatrand:token});
+                socket.emit('updateChatTime', token);
+                $('#show-time').html(tlimit);
+                clearInterval(interval);
+                window.existingCall.close();
+                window.existingCall = null;
+                //step2();
+                $('#step4').hide();
+                $('#their-vid').text('Waiting for other user...');
+                showconvo();
+                $('#messages').html('');
+                $('#myModal').modal('show');
+              }
+            },1000);
+          }
+          
+        }
+
+        function showconvo() {
+          var peerUser = $('#their-id').text();
+          var userID = $('#userID').text();
+          socket.emit('showpm', { toid : peerUser, cuid: userID});
+
+          socket.on('dispConvo', function(data){
+            var convo = '';
+            var userID = $('#userID').text();
+            var max = '0';
+
+            for(var i=0; i < data.result.length; i++){
+              var date = new Date(data.result[i].updatedAt);
+              d = date.getDay();
+              d = d-1;
+              if ((d) != max) {
+                max = d;
+                convo += '<br><i style="color:#ccc;">---------------'+date.getFullYear()+'-'+(date.getMonth()+1)+'-'+d+'-----------------</i><br>'
+              }
+              if (data.result[i].uid != userID && data.result[i] != undefined) {
+                convo += '<br><div style="float:left;"><strong style="color:#000; word-break: break-word;">'+data.result[i].uid+':</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';
+              } else {
+                convo += '<br><div style="float:left;"><strong style="color:#006699; word-break: break-word;">You:</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';  
+              }
+            }
+            $( "#their-div" ).html( convo );
+            
+          });
+        }
 	</script>
 </head>
 <body style="background-color:#014051; color: #fff;">

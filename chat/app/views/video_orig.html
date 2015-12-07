@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Video call</title>
+  <link rel="stylesheet" type="text/css" href="/css/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.css">
+	<script src="http://192.168.0.167:3000/js/jquery-2.1.4.min.js"></script>
+  <script src="http://192.168.0.167:3000/socket.io/socket.io.js"></script>
+	<script src="http://192.168.0.167:3000/js/peer.js"></script>
+  <!-- Add jQuery Script --><script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script>
+		//"use strict";
+    		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        var host = '192.168.0.167'
+        var socket = io.connect('http://'+host+':3000');
+        var conn;
+        var tlimit = '01:10';
+        var rand = makeid();
+        var interval = '';
+        var token = '';
+        var reconPeer = '';
+  		  var peer = new Peer(
+	    		rand, { host: host, port: 9000, path:'/peerjs'}//, debug:true}
+				);
+
+		    peer.on('open', function(id){
+          $('#pid').text(id);
+          var userID = $('#userID').text();
+          socket.emit('savePeer', {peer:id, userID:userID});
+          socket.emit('showPeer');
+        });
+
+        peer.on('call', function(call){
+          if (!window.existingCall) {
+            var r = confirm(call.peer+" wants to video call with you."); 
+            if (r == true) {
+              call.answer(window.localStream);
+              step3(call);
+            } else {
+              $('#step4').hide();
+              return false;
+            }
+          }
+        });
+
+		    peer.on('error', function(err){
+		      alert(err.message);
+		      step2();
+		    });
+
+	      navigator.getUserMedia({audio: true, video: true}, function(stream){
+	        $('#myvid').prop('src', URL.createObjectURL(stream));
+          window.localStream = stream;
+          step2();
+      	}, function(){ 
+          $('#step1-error').show(); 
+        });
+
+        function timeLimit(action){
+          if (!interval) {
+            interval = setInterval(function(){
+              var timer = $("b[id=show-time]").html().split(':');
+              var minutes = parseInt(timer[0],10);
+              var seconds = parseInt(timer[1],10);
+              --seconds;
+              minutes = (seconds < 0) ? --minutes : minutes;
+              if (minutes < 0 ) clearInterval(interval);
+              seconds = (seconds < 0) ? 59 : seconds;
+              seconds = (seconds < 10) ? '0' + seconds : seconds;
+              minutes = (minutes < 10) ?  '0' + minutes : minutes;
+
+              $('#show-time').html(minutes + ':' + seconds);
+              if((seconds == 0 && minutes == 0) || action == 'stop'){
+                alert('Call has ended');
+                socket.emit('savetochathistory', {chatrand:token});
+                socket.emit('updateChatTime', token);
+                $('#show-time').html(tlimit);
+                clearInterval(interval);
+                window.existingCall.close();
+                window.existingCall = null;
+                step2();
+                $('#step4').hide();
+                $('#their-vid').text('Waiting for other user...');
+                showconvo();
+                $('#messages').html('');
+                $('#myModal').modal('show');
+              }
+            },1000);
+          }
+          
+        }
+
+        function makeid(){
+            var text = "";
+            var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            for( var i=0; i < 5; i++ )
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+            return text;
+        }
+
+      	function ConnectToPeer(data){
+          $('#welcomeModal').modal('hide');
+          var peeruser = getpeeruser(data);
+          
+          var call = peer.call(data, window.localStream);
+
+          socket.emit('giveChatToken', rand);
+          
+      		step3(call, data);
+        };
+
+        function connect(c) {
+          $('#chat_area').show();
+          conn = c;
+          var peerUser = $('#their-id').text();
+
+          conn.on('data', function(data){
+            $('#messages').prepend('<br><strong style="color:#000;">' + peerUser + ':</strong> <font style="color:#000;">' + data+'</font>');
+          });
+          conn.on('close', function(err){
+            
+            var peerID = conn.peer;
+            window.existingCall.close();
+            window.existingCall = null;     
+            socket.emit('updateChatTime', token);
+            socket.emit('saveDisconPeer',{peer: peer.id, hostid: peerID, token: token});
+            console.log(peer.id);
+            console.log(peerID+" --- "+peer.id);
+            step2();
+            $('#step4').hide();
+            alert(peerUser + ' has left the chat.');
+          });
+        }
+
+      	function step3 (call, data) {          
+          var settimmer = 0;
+		      if (window.existingCall) {
+            alert('currently in call');
+		      } else {
+
+            c = peer.connect(data);
+            
+            c.on('open', function(){
+              connect(c);
+            });
+
+            if(call){
+              call.on('stream', function(stream){
+                timeLimit();
+                $('#their-video').prop('src', URL.createObjectURL(stream));
+              });
+
+              window.existingCall = call;
+              getpeeruser(call.peer);
+              call.on('close', step2);
+            }
+
+            socket.on('getToken', function(data){
+              token = data;
+              console.log(token);
+            });
+            
+            $('#step1, #step2').hide();
+            $('#step3, #step4').show();
+          }
+		    }
+
+        function getpeeruser(call){
+          socket.emit('getpeer', {peer:call});
+          socket.on('showIndipeer', function(data){
+            $('#their-id').text(data.username);
+            $('#their-vid').text(data.username+"'s video");
+            socket.emit('returnPeerUser', {username: data.username});
+          });
+        }
+
+        function switchRoom(room){
+          socket.emit('switchRoom', room);
+          socket.emit('showPeer');
+        }
+
+		    function step2 () {
+		      $('#step1, #step3').hide();
+		      $('#step2').show();
+          window.existingCall = null;
+		    }
+
+        function showconvo() {
+          var peerUser = $('#their-id').text();
+          var userID = $('#userID').text();
+          socket.emit('showpm', { toid : peerUser, cuid: userID});
+
+          socket.on('dispConvo', function(data){
+            var convo = '';
+            var userID = $('#userID').text();
+            var max = '0';
+
+            for(var i=0; i < data.result.length; i++){
+              var date = new Date(data.result[i].updatedAt);
+              d = date.getDay();
+              d = d-1;
+              if ((d) != max) {
+                max = d;
+                convo += '<br><i style="color:#ccc;">---------------'+date.getFullYear()+'-'+(date.getMonth()+1)+'-'+d+'-----------------</i><br>'
+              }
+              if (data.result[i].uid != userID && data.result[i] != undefined) {
+                convo += '<br><div style="float:left;"><strong style="color:#000; word-break: break-word;">'+data.result[i].uid+':</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';
+              } else {
+                convo += '<br><div style="float:left;"><strong style="color:#006699; word-break: break-word;">You:</strong>' + data.result[i].message+'</div><div style="float:right;color:#ccc;">Time:'+date.getHours()+':'+date.getMinutes()+':'+date.getSeconds()+'</div>';  
+              }
+            }
+            $( "#their-div" ).html( convo );
+            
+          });
+        }
+
+        function parseTime(s) {
+           var c = s.split(':');
+           return parseInt(c[0]) * 60 + parseInt(c[1]);
+        }
+
+        function getCurrentTime(){
+          var today = new Date();
+          var h = today.getHours();
+          var m = today.getMinutes();
+          var s = today.getSeconds();
+          if (m <10) {
+            m = '0'+m;
+          } 
+
+          if (s <10) {
+            s = '0'+s;
+          }
+
+          if (h <10) {
+            h = '0'+h;
+          }
+          var time = h+':'+m+':'+s;
+
+          return time;
+        }
+
+        socket.on('connect', function(){
+          var username = $('#userID').text();
+          socket.emit('joinUser', {username:username});
+          socket.emit('checkIfDiscon', {username:username}); 
+
+          socket.on('reconnectTopeer', function(data){
+            var peerID = data.peer;
+            var peerlist = '';
+            reconPeer = data.peer;
+            //peerlist = "<dt class='list-unstyled'> Do you want to reconnect? <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data.peer+"</a></dt>";
+            ConnectToPeer(data.peer);
+            $('#model-content').html(peerlist);
+            $('#welcomeModal').modal('show');
+            
+          });
+
+          socket.on('getStarttime', function (data){
+            console.log(parseTime(getCurrentTime()) - parseTime(data));
+          });
+        });
+
+
+
+        //notification
+        socket.on('updatechat', function (username, data) {
+          $('#notification').prepend('<b>'+username + ':</b> ' + data + '<br>');
+        });
+
+        socket.on('updaterooms', function(rooms, current_room) {
+          $('#rooms').empty();
+          $.each(rooms, function(key, value) {
+            if(value == current_room){
+              $('#rooms').append('<div style="color:#cc6600;">' + value + '</div>');
+            } else {
+              $('#rooms').append('<div><a href="#" onclick="switchRoom(\''+value+'\')">' + value + '</a></div>');
+            }
+          });
+        });
+
+        socket.on('peerList', function(data){
+          var peerlist = '';
+          for(var cnt = 0;cnt < data.length;cnt++){
+            if ($('#pid').text() != data[cnt].peer && data[cnt].peer != ''){
+              $('#their-id').text(data[cnt].username);
+              peerlist += "<dt class='list-unstyled'> Video Call with: ("+data[cnt].username+") <a href='javascript:void(0);' onclick='ConnectToPeer($(this).text())'>"+data[cnt].peer+"</a></dt>";
+            }
+          }
+
+          $('#peer-list').html(peerlist);
+        });
+        
+		    window.onload = function() {
+
+          peer.on('connection', connect);
+
+          var username = $('#userID').text();
+
+          $('#show-time').html(tlimit);
+          $('#chat_area, #btnhistory').hide();
+          $('#welcomeModal').modal('show');
+
+  				$('#end-call').click(function(){
+            var r = confirm('Are you sure you want to end your call');
+            var userID = $('#userID').text();
+            if (r == true) {
+              socket.emit('discon');
+              window.existingCall.close();
+              $('#show-time').html(tlimit);
+              clearInterval(interval);
+              step2();
+              $('#step4').hide();
+              $('#their-vid').text('Waiting for other user...');
+            }
+  	    	});
+
+          // Send a chat message
+          $('#send').click(function(){
+            var msg = $('#text').val();
+            conn.send(msg);
+
+            $('#messages').append('<br>You:<br>' + msg);
+            $('#text').val('');  
+          });
+
+          $('#roombutton').click(function(){
+            var name = $('#roomname').val();
+            $('#roomname').val('');
+            socket.emit('create', name)
+          });
+
+          $('#sortroom').click(function(){
+            socket.emit('sortroom');
+          });
+
+          $('#text').on('keyup', function(){
+            if (event.which == 13){
+              var msg = $('#text').val();
+              var peerUser = $('#their-id').text();
+              var userID = $('#userID').text();
+              conn.send(msg);
+
+              $('#messages').prepend('<br><strong style="color:#006699; word-break: break-word;">You:<strong>' + msg);
+              $('#text').val(''); 
+
+              socket.emit('addConvo', {toid:peerUser, cuid:userID, message:msg, chatrand: token});
+              
+            }
+          });
+			};
+	</script>
+</head>
+<body style="background-color:#014051; color: #fff;">
+<% include topmenu.html %>
+<div class="container">
+  <div class="row">
+  <p class="bg-warning" id="notification" style="padding:10px; height:100px;overflow-y:scroll;background-color:rgba(252, 248, 227, 0.08);"></p>
+
+    <div class="col-md-4" style="background-color:#fff; height:581px;">
+
+      <div class="row">
+        <p  id="pid" class="bg-primary" style="padding:10px;"></p>
+        <h3 style="color:#000; padding-left:10px;">My video (<font id="userID"><%=user%></font>)</h3>
+        <video id="myvid" style="width: 100%;" muted="true" autoplay></video>
+        <div id="my-timer" style="color:#000;padding:10px;">
+          Remaining chat time <b id="show-time"></b>        
+        </div>
+        <b style="color:#000; padding:10px;">ROOMS</b>
+
+        <input id="roomname" style="width:100px;color:#000"/>
+        <input type="button" id="roombutton" value="Create room" style='color:#000'/>
+        <input type="button" id="sortroom" value="sort room" style='color:#000'/>
+        <div id="rooms" style="padding:10px; height:100px; overflow-y:scroll;"></div>
+      </div>
+
+    </div>
+
+    <div class="col-md-7" style="background-color:#fff; margin-left:10px; height:581px;">
+      <div class="row" >
+        <p  id="their-vid" class="bg-primary" style="padding:10px">Waiting for other user...</p>
+        <video id="their-video" src="" style="width: 100%; padding-bottom:10px;" muted="true" autoplay></video>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4" style="margin-top:15px;background-color:rgba(252, 248, 227, 0.08);">
+          <h4>Currently online users:</h4>
+          <hr>
+          <dl id="peer-list"></dl>
+
+          <div id="step3" >
+            <p>Currently in call with <span id="their-id">...</span></p>
+            <p><a href="#" class="pure-button pure-button-error" id="end-call">End call</a></p>
+          </div>
+        </div>
+
+        <div class="col-md-7" style="margin-top:15px;" id="step4">
+          <div id="chat_area">
+            <input type="text" id="text" placeholder="Enter message" class="form-control">
+            <div id="messages" style="word-break: break-word; height:350px; overflow-y: scroll; background-color:#ccc; padding:5px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+</div>
+
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" style="color:#000">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">Chat history</h4>
+      </div>
+      <div class="modal-body" id="their-div" style="height:500px; overflow-y:scroll">
+        ...
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="welcomeModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" style="color:#000">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content" style="padding:10px; text-align:center" id="model-content">
+      <h1 >WELCOME!</h1>
+      <p>Select a room to start</p>
+    </div>
+  </div>
+</div>
+
+<div class="log">
+</div>
+</body>
+</html>

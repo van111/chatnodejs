@@ -18,6 +18,7 @@ exports.users = seq.define('users',
 	password: Sequelize.STRING(255),
 	peer: Sequelize.STRING(25),
 	room: Sequelize.STRING(255),
+	dc_code: Sequelize.STRING(25),
 	status: Sequelize.INTEGER
 });
 
@@ -43,6 +44,17 @@ exports.newsfeeds = seq.define('newsfeeds',{
 exports.hashchats = seq.define('hashchats',{
 	id: {type: Sequelize.INTEGER, primaryKey: true},
 	rand: Sequelize.STRING,
+	starttime: Sequelize.TIME,
+	endtime: Sequelize.TIME,
+	createdAt: Sequelize.DATE,
+	updatedAt: Sequelize.DATE,
+});
+
+exports.connections = seq.define('connections',{
+	id: {type: Sequelize.INTEGER, primaryKey: true},
+	peer1: Sequelize.STRING,
+	peer2: Sequelize.STRING,
+	status: Sequelize.STRING,
 	createdAt: Sequelize.DATE,
 	updatedAt: Sequelize.DATE,
 });

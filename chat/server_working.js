@@ -394,7 +394,7 @@ io.sockets.on('connection', function (socket) {
     //socket.join('room1');
     //socket.emit('updatechat', 'SERVER', 'you have connected to room1');
     //socket.broadcast.to('room1').emit('updatechat', 'SERVER', username + ' has connected to this room');
-    socket.emit('updaterooms', rooms, 'none');
+    socket.emit('updaterooms', rooms, '');
     socket.emit('showPeer');
     chat.users.findOne({
       where: {
@@ -476,65 +476,14 @@ io.sockets.on('connection', function (socket) {
     var username = data.username;
 
     //check if got peer
-    chat.connections.findOne({
-      where:{
-        peer1:username,
-        status:'disconnected'
-      }
-    }).then(function(result){
-      if (result.peer2 != '...' && result.peer1 != '...') {
-        chat.users.findOne({
-          where: {
-            username: result.peer2
-          }
-        }).then(function(res){
-          if (res) {
-            socket.emit('reconnectTopeer', res);
-            socket.broadcast.emit('updatechat', 'SERVER', username + ' is reconnecting to the server');
-            socket.emit('updatechat', 'SERVER', 'Reconnecting...');
-            socket.join(res.room);
-
-            chat.hashchats.findOne({
-              where: {
-                rand:res.dc_code
-              }
-            }).then(function(r){
-              socket.emit('getStarttime', r.starttime);
-            });
-
-            chat.connections.findOne({
-              where: {
-                peer1:username, peer2:result.peer2
-              }
-            }).then(function(output){
-              output.updateAttributes({
-                status: 'online'
-              });
-            });
-
-            chat.connections.findOne({
-              where: {
-                peer1:result.peer2, peer2:username
-              }
-            }).then(function(output){
-              output.updateAttributes({
-                status: 'online'
-              });
-            });
-          }
-        });
-      }
-    });
-    /*chat.users.findOne({
+    chat.users.findOne({
       where: {
-        username: username,
-        status: 9
+        username: username
       } 
     }).then(function(result){
       if (result.peer) {
         socket.emit('reconnectTopeer', result);
         socket.broadcast.emit('updatechat', 'SERVER', data.username + ' is reconnecting to the server');
-        socket.emit('updatechat', 'SERVER', 'Reconnecting...');
         socket.join(result.room);
 
         chat.hashchats.findOne({
@@ -545,14 +494,13 @@ io.sockets.on('connection', function (socket) {
           socket.emit('getStarttime', res.starttime);
         });
       }
-    });*/
+    });
   });
 
   socket.on('saveDisconPeer', function(data){
     var peer = data.peer;
     var host = data.hostid;
     var token = data.token;
-    var status = data.status;
 
     chat.users.findOne({
       where: {
@@ -561,8 +509,7 @@ io.sockets.on('connection', function (socket) {
     }).then(function(result){
       result.updateAttributes({
         peer: peer,
-        dc_code: token,
-        status: status
+        dc_code: token
       });
     });
   });
@@ -593,53 +540,6 @@ io.sockets.on('connection', function (socket) {
     });
 
   });
-
-  socket.on('peerConnections', function(data){
-    var peer1 = data.peer1;
-    var peer2 = data.peer2;
-    var status = data.status;
-
-    if (peer1 != '...' && peer2 != '...') {
-
-      chat.connections.findOne({
-          where: {
-            peer1:peer1, 
-            peer2:peer2
-          }
-      }).then(function(output){
-        if (output) {
-          output.updateAttributes({
-            status: status
-          });
-
-        } else {
-          chat.connections.create({
-            peer1: peer1,
-            peer2: peer2,
-            status: status
-          });
-        }
-        
-      });
-
-      chat.connections.findOne({
-        where: {
-          peer1:peer2,
-          peer2:peer1
-        }
-      }).then(function(output){
-        output.updateAttributes({
-          status: status
-        });
-      });
-      
-    }
-  });
-
-  socket.on('peerDisconnected', function(data){
-    var peer = data.peer;
-    var status = data.status;
-  })
 
 });
 
