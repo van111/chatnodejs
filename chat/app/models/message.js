@@ -57,4 +57,4 @@ exports.connections = seq.define('connections',{
 	status: Sequelize.STRING,
 	createdAt: Sequelize.DATE,
 	updatedAt: Sequelize.DATE,
-});
+},{timestamps:false});

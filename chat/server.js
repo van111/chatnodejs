@@ -306,14 +306,14 @@ io.sockets.on('connection', function (socket) {
   });
 
   socket.on('send', function (data) {
-        io.sockets.emit('message', data);
-        if (data) {
-          chat.tblchats.create({
-            text : data.message,
-            username : data.username
-          });
-          console.log('chat added');
-        }
+    io.sockets.emit('message', data);
+    if (data) {
+      chat.tblchats.create({
+        text : data.message,
+        username : data.username
+      });
+      console.log('chat added');
+    }
   });
 
   socket.on('savePeer', function (data) {
@@ -434,21 +434,8 @@ io.sockets.on('connection', function (socket) {
     if (socket.username) {
       delete usernames[socket.username];
       io.sockets.emit('updateusers', usernames);
-      socket.broadcast.emit('updatechat', 'SERVER', socket.username + ' has disconnected from the server');
+      socket.broadcast.emit('updatechat', 'SERVER', '<font style="color:#ff3333">' + socket.username + ' has been disconnected from the server</font>');
       socket.leave(socket.room);
-
-      /*chat.users.findOne({
-        where: {
-          username:socket.username
-        } 
-      }).then(function(result){
-        result.updateAttributes({
-            username : socket.username,
-            peer : '',
-            room : ''
-        });
-          console.log('peer updated');
-      });*/
     }
   });
 
@@ -482,47 +469,49 @@ io.sockets.on('connection', function (socket) {
         status:'disconnected'
       }
     }).then(function(result){
-      if (result.peer2 != '...' && result.peer1 != '...') {
-        chat.users.findOne({
-          where: {
-            username: result.peer2
-          }
-        }).then(function(res){
-          if (res) {
-            socket.emit('reconnectTopeer', res);
-            socket.broadcast.emit('updatechat', 'SERVER', username + ' is reconnecting to the server');
-            socket.emit('updatechat', 'SERVER', 'Reconnecting...');
-            socket.join(res.room);
+      if (result) {
+        if (result.peer2 != '...' && result.peer1 != '...') {
+          chat.users.findOne({
+            where: {
+              username: result.peer2
+            }
+          }).then(function(res){
+            if (res) {
+              socket.emit('reconnectTopeer', {res:res, starttime:result.createdAt});
+              socket.broadcast.emit('updatechat', 'SERVER', username + ' is reconnected to the server');
+              socket.emit('updatechat', 'SERVER', 'You are now reconnected');
+              socket.join(res.room);
 
-            chat.hashchats.findOne({
-              where: {
-                rand:res.dc_code
-              }
-            }).then(function(r){
-              socket.emit('getStarttime', r.starttime);
-            });
-
-            chat.connections.findOne({
-              where: {
-                peer1:username, peer2:result.peer2
-              }
-            }).then(function(output){
-              output.updateAttributes({
-                status: 'online'
+              chat.hashchats.findOne({
+                where: {
+                  rand:res.dc_code
+                }
+              }).then(function(r){
+                socket.emit('getStarttime', r.starttime);
               });
-            });
 
-            chat.connections.findOne({
-              where: {
-                peer1:result.peer2, peer2:username
-              }
-            }).then(function(output){
-              output.updateAttributes({
-                status: 'online'
+              chat.connections.findOne({
+                where: {
+                  peer1:username, peer2:result.peer2
+                }
+              }).then(function(output){
+                output.updateAttributes({
+                  status: 'online'
+                });
               });
-            });
-          }
-        });
+
+              chat.connections.findOne({
+                where: {
+                  peer1:result.peer2, peer2:username
+                }
+              }).then(function(output){
+                output.updateAttributes({
+                  status: 'online'
+                });
+              });
+            }
+          });
+        }
       }
     });
     /*chat.users.findOne({
@@ -609,14 +598,17 @@ io.sockets.on('connection', function (socket) {
       }).then(function(output){
         if (output) {
           output.updateAttributes({
-            status: status
+            status: status,
+            updatedAt: new Date()
           });
 
         } else {
           chat.connections.create({
             peer1: peer1,
             peer2: peer2,
-            status: status
+            status: status,
+            createdAt:  new Date(),
+            updatedAt: new Date()
           });
         }
         
@@ -629,7 +621,8 @@ io.sockets.on('connection', function (socket) {
         }
       }).then(function(output){
         output.updateAttributes({
-          status: status
+          status: status,
+          updatedAt: new Date()
         });
       });
       
@@ -651,6 +644,18 @@ function getCurrentTime(){
   var time = h+':'+m+':'+s;
 
   return time;
+}
+
+function calcTime(offset) {
+
+  d = new Date();
+  
+  utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  
+  nd = new Date(utc + (3600000*offset));
+  
+  nd = nd.getFullYear() + '-' + nd.getMonth() + '-' + nd.getDate() + ' ' + nd.getHours() + ':' + nd.getMinutes() + ':' + nd.getSeconds();
+  return nd;
 }
 
 

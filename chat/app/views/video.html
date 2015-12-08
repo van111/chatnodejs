@@ -15,12 +15,12 @@
         var host = 'localhost';
         var socket = io.connect('http://'+host+':3000');
         var conn;
-        var tlimit = '01:10';
+        var tlimit = '05:00';
         var rand = makeid();
         var interval = '';
         var token = '';
         var reconPeer = '';
-  		  var peer = new Peer( { host: host, port: 9000, path:'/peerjs'} );
+  		  var peer = new Peer( { host: host, port: 9000, path:'/peerjs', debug:3} );
 
         //check peer
         peer.on('open', function(id){
@@ -63,11 +63,21 @@
           socket.emit('checkIfDiscon', {username:username});
 
           socket.on('reconnectTopeer', function(data){
-            var peerID = data.peer;
+            var peerID = data.res.peer;
             var peerlist = '';
-            reconPeer = data.peer;
+            var timeStart = new Date(data.starttime);
+            var timeEnd = new Date();
             window.existingCall = null;  
-            ConnectToPeer(reconPeer);            
+            ConnectToPeer(peerID);
+
+            var difference = timeEnd.getTime() - timeStart.getTime();
+            var minutesDifference = Math.floor(difference/1000/60);
+            difference -= minutesDifference*1000*60
+            var secondsDifference = Math.floor(difference/1000);
+            var getMin = (4 - minutesDifference) + ':' + (60 - secondsDifference);  
+            
+            $("b[id=show-time]").html(getMin);
+            
           });
         });
 
@@ -103,10 +113,11 @@
         //onload events===============================================================================================================================================
         
 		    window.onload = function() {
+
           peer.on('connection', connect);
 
           $('#show-time').html(tlimit);
-
+          $('#step4').hide();
           $('#roombutton').click(function(){
             var name = $('#roomname').val();
             $('#roomname').val('');
@@ -168,16 +179,15 @@
             window.existingCall.close();
             window.existingCall = null;     
             socket.emit('updateChatTime', token);
-            //socket.emit('saveDisconPeer',{peer: peer.id, hostid: peerID, token: token, status:9});
             socket.emit('peerConnections', {peer1:username,peer2:peerUser,status:'disconnected'});
-            alert(peerID + ' has left the chat.');
+            socket.emit('updatechat', 'SERVER', peerID + ' has left the chat room');
           });
         }
 
         function ConnectToPeer(data){ //host
           var call = peer.call(data, window.localStream);
           if (window.existingCall) {
-            alert('currently in call');
+            $('#notification').prepend('<b>SERVER:</b> <font style="color:#ff3333">User is currently in a conversation</font><br>');
           } else {
             process(call,data);
             socket.emit('giveChatToken', rand);
@@ -185,6 +195,9 @@
         }
 
         function process(call, data){
+          var peerUser = $('#their-id').text();
+          var username = $('#userID').text();
+
           conn = peer.connect(data); //connecting to peer
           conn.on('open', function(){
             connect(conn);
@@ -195,10 +208,13 @@
             $('#their-video').prop('src', URL.createObjectURL(stream));
           });
           window.existingCall = call;
-
+          
           socket.on('getToken', function(data){
               token = data;
           });
+
+          socket.emit('peerConnections', {peer1:username,peer2:peerUser,status:'started'});
+          $('#step4').show();
         }
 
         function makeid(){
@@ -250,6 +266,11 @@
           
         }
 
+        function parseTime(s) {
+           var c = s.split(':');
+           return parseInt(c[0]) * 60 + parseInt(c[1]);
+        }
+
         function showconvo() {
           var peerUser = $('#their-id').text();
           var userID = $('#userID').text();
@@ -282,6 +303,7 @@
 </head>
 <body style="background-color:#014051; color: #fff;">
 <% include topmenu.html %>
+<button id="recon">Reconnect vid</button>
 <div class="container">
   <div class="row">
   <p class="bg-warning" id="notification" style="padding:10px; height:100px;overflow-y:scroll;background-color:rgba(252, 248, 227, 0.08);"></p>
@@ -327,7 +349,7 @@
         <div class="col-md-7" style="margin-top:15px;" id="step4">
           <div id="chat_area">
             <input type="text" id="text" placeholder="Enter message" class="form-control">
-            <div id="messages" style="word-break: break-word; height:350px; overflow-y: scroll; background-color:#ccc; padding:5px;"></div>
+            <div id="messages" style="word-break: break-word; height:250px; overflow-y: scroll; background-color:rgba(252, 248, 227, 0.08); padding:5px;"></div>
           </div>
         </div>
       </div>
