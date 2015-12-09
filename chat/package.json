@@ -4,6 +4,14 @@
   "dependencies"  : {
       "express"   : "~4.11.2",
       "mysql"     : "~2.5.5",
+      "sequelize"   : "~3.14.2",
+      "express-session" : "latest",
+      "cookie-parser"	: "latest",
+      "client-sessions"	: "latest",
+      "peer"      : "latest",
+      "fs"				: "latest",
+      "body-parser"		: "latest",
+      "https"			: "latest",
       "socket.io" : "~1.3.3",
       "supervisor" : ""
   }

@@ -1,15 +1,23 @@
+
 var express   = require('express');
 var session   = require('express-session');
 var cookieParser = require('cookie-parser');
 var session = require('client-sessions');
 var fs        = require('fs');
+var cert = {
+  key: fs.readFileSync('/etc/httpd/ssl/fdc-signal/STAR_inn-devel_com/inn-devel.key'),
+  cert: fs.readFileSync('/etc/httpd/ssl/fdc-signal/STAR_inn-devel_com/STAR_inn-devel_com.crt'),
+  ca: fs.readFileSync('/etc/httpd/ssl/fdc-signal/STAR_inn-devel_com/STAR_inn-devel_com.cer')
+};
+var PeerServer = require('peer').PeerServer;
 var mysql     = require("mysql");
 var app       = express();
 var bodyParser = require('body-parser');
-var http      = require('https').Server(app);
-var io        = require("socket.io")(http);
+var https      = require('https').createServer(cert,app);
+var io        = require("socket.io")(https);
 var chat      = require('./app/models/message');
-var port      = 3000;
+var server = PeerServer({port: 5000, path: '/', proxied: false, ssl:cert});
+var port      = 4501;
 
 app.set('views', __dirname + '/app/views');
 app.set('view engine', "html");
@@ -33,13 +41,28 @@ var usernames = {};
 
 //-------------Peer--------------------
 
-var ExpressPeerServer = require('peer').ExpressPeerServer;
-var peerExpress = require('express');
-var peerApp = peerExpress();
-var peerServer = require('http').createServer(peerApp);
 
-var options = { debug: true }
-var peerPort = 9000;
+/*var peerExpress = require('express');
+var peerApp = peerExpress();*/
+
+/*var options = { debug: true}
+var peerPort = 5000;
+
+peerServer.on('connection', function (id) {
+  var idx = connected.indexOf(id); // only add id if it's not in the list yet
+  if (idx === -1) {connected.push(id);}
+});
+peerServer.on('disconnect', function (id) {
+  var idx = connected.indexOf(id); // only attempt to remove id if it's in the list
+  if (idx !== -1) {connected.splice(idx, 1);}
+});
+router.get('/connected-people', function (req, res) {
+  console.log(connected);
+});*/
+var options = { debug: true}
+// router.use('/peerjs', PeerServer(server, options));
+
+//peerServer.listen(peerPort);
 
 //-----------end peer--------------------
 
@@ -51,51 +74,7 @@ router.use(function(req, res, next) {
   next();
 });
 
-io.listen(app.listen(port)); //listen to port
-
-router.get('/setsession',function(req,res){
-    sess=req.session;
-    sess.sessdata = {};
-    sess.sessdata.email= "inaam";
-    sess.sessdata.pass= "inaam1234";
-    var data = {
-        "Data":""
-    };
-    data["Data"] = 'Session set';
-    res.json(data);
-});
-
-router.get('/destroysession',function(req,res){
-    sess=req.session;
-    var data = {
-        "Data":""
-    };
-    sess.destroy(function(err) {
-        if(err){
-            data["Data"] = 'Error destroying session';
-            res.json(data);
-        }else{
-            data["Data"] = 'Session destroy successfully';
-            res.json(data);
-        }
-    });
-});
-
-router.get('/savesession',function(req,res){
-    sess=req.session;
-    var data = {
-        "Data":""
-    };
-    sess.save(function(err) {
-        if(err){
-            data["Data"] = 'Error saving session';
-            res.json(data);
-        }else{
-            data["Data"] = 'Session saved successfully';
-            res.json(data);
-        }
-    })
-});
+https.listen(app.listen(port)); //listen to port
 
 /*index get*/
 router.get("/", function(req, res){
@@ -211,23 +190,6 @@ router.get("/logout", function(req, res){
   req.session.reset();
   res.redirect('/');
 });
-
-
-peerServer.on('connection', function (id) {
-  var idx = connected.indexOf(id); // only add id if it's not in the list yet
-  if (idx === -1) {connected.push(id);}
-});
-peerServer.on('disconnect', function (id) {
-  var idx = connected.indexOf(id); // only attempt to remove id if it's in the list
-  if (idx !== -1) {connected.splice(idx, 1);}
-});
-router.get('/connected-people', function (req, res) {
-  console.log(connected);
-});
-
-peerApp.use('/peerjs', ExpressPeerServer(peerServer, options));
-
-peerServer.listen(peerPort);
 
 io.sockets.on('connection', function (socket) {
 

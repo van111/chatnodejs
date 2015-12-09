@@ -4,23 +4,23 @@
 	<title>Video call</title>
   <link rel="stylesheet" type="text/css" href="/css/bootstrap.css">
   <link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.css">
-	<script src="http://192.168.0.167:3000/js/jquery-2.1.4.min.js"></script>
-  <script src="http://192.168.0.167:3000/socket.io/socket.io.js"></script>
-	<script src="http://192.168.0.167:3000/js/peer.js"></script>
+	<script src="https://fdc-signal.inn-devel.com:4501/js/jquery-2.1.4.min.js"></script>
+  <script src="https://fdc-signal.inn-devel.com:4501/socket.io/socket.io.js"></script>
+	<script src="https://fdc-signal.inn-devel.com:4501/js/peer.js"></script>
   <!-- Add jQuery Script --><script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 	<script>
 		//"use strict";
     		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-        var host = 'localhost';
-        var socket = io.connect('http://'+host+':3000');
+        var host = 'fdc-signal.inn-devel.com';
+        var socket = io.connect('https://fdc-signal.inn-devel.com:4501');
         var conn;
         var tlimit = '05:00';
         var rand = makeid();
         var interval = '';
         var token = '';
         var reconPeer = '';
-  		  var peer = new Peer( { host: host, port: 9000, path:'/peerjs', debug:3} );
+  		  var peer = new Peer('',{ host: host, port: 5000, path:'/'} );
 
         //check peer
         peer.on('open', function(id){
@@ -303,7 +303,6 @@
 </head>
 <body style="background-color:#014051; color: #fff;">
 <% include topmenu.html %>
-<button id="recon">Reconnect vid</button>
 <div class="container">
   <div class="row">
   <p class="bg-warning" id="notification" style="padding:10px; height:100px;overflow-y:scroll;background-color:rgba(252, 248, 227, 0.08);"></p>

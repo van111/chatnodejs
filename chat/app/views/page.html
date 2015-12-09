@@ -1,7 +1,7 @@
 <% include header.html %>
 <% include topmenu.html %>
 <script>
-var socket = io.connect('http://localhost:3000');
+var socket = io.connect('https://52.192.57.117:4501');
    // on connection to server, ask for user's name with an anonymous callback
     socket.on('connect', function(){
         var username = $('#name').val();
