@@ -39,34 +39,6 @@ var rooms = ['room1', 'room2', 'room3'];
 var connected = [];
 var usernames = {};
 
-//-------------Peer--------------------
-
-
-/*var peerExpress = require('express');
-var peerApp = peerExpress();*/
-
-/*var options = { debug: true}
-var peerPort = 5000;
-
-peerServer.on('connection', function (id) {
-  var idx = connected.indexOf(id); // only add id if it's not in the list yet
-  if (idx === -1) {connected.push(id);}
-});
-peerServer.on('disconnect', function (id) {
-  var idx = connected.indexOf(id); // only attempt to remove id if it's in the list
-  if (idx !== -1) {connected.splice(idx, 1);}
-});
-router.get('/connected-people', function (req, res) {
-  console.log(connected);
-});*/
-var options = { debug: true}
-// router.use('/peerjs', PeerServer(server, options));
-
-//peerServer.listen(peerPort);
-
-//-----------end peer--------------------
-
-
 app.use('/', router);
 router.use(function(req, res, next) {
   sess=req.session;
@@ -74,7 +46,7 @@ router.use(function(req, res, next) {
   next();
 });
 
-https.listen(app.listen(port)); //listen to port
+https.listen(port); //listen to port
 
 /*index get*/
 router.get("/", function(req, res){
@@ -192,6 +164,8 @@ router.get("/logout", function(req, res){
 });
 
 io.sockets.on('connection', function (socket) {
+    
+  console.log(socket.handshake.query.user);
 
   socket.on('showpm', function (data) {
     var toid = data.toid;
@@ -289,8 +263,10 @@ io.sockets.on('connection', function (socket) {
               username : data.userID,
               peer : data.peer
           });
+          io.socket.emit('test', data.id);
             console.log('peer updated');
         });
+
       }  
   });
 
@@ -421,6 +397,8 @@ io.sockets.on('connection', function (socket) {
     });
   });
 
+  socket.emit('reconnect',{username: socket.handshake.query.user});
+
   socket.on('checkIfDiscon', function(data){
     var username = data.username;
 
@@ -428,7 +406,7 @@ io.sockets.on('connection', function (socket) {
     chat.connections.findOne({
       where:{
         peer1:username,
-        status:'disconnected'
+        status:'started'
       }
     }).then(function(result){
       if (result) {
@@ -439,9 +417,13 @@ io.sockets.on('connection', function (socket) {
             }
           }).then(function(res){
             if (res) {
-              socket.emit('reconnectTopeer', {res:res, starttime:result.createdAt});
+              socket.emit('reconnectTopeer', {res:res, starttime:getRTime(result.createdAt),username:username });
+
+              io.sockets.emit('reconPeer',true);
+              io.sockets.emit('showtime',getRTime(result.createdAt));
+
               socket.broadcast.emit('updatechat', 'SERVER', username + ' is reconnected to the server');
-              socket.emit('updatechat', 'SERVER', 'You are now reconnected');
+              socket.emit('updatechat', 'SERVER', 'Reconnecting....');
               socket.join(res.room);
 
               chat.hashchats.findOne({
@@ -458,7 +440,7 @@ io.sockets.on('connection', function (socket) {
                 }
               }).then(function(output){
                 output.updateAttributes({
-                  status: 'online'
+                  status: 'started'
                 });
               });
 
@@ -468,7 +450,7 @@ io.sockets.on('connection', function (socket) {
                 }
               }).then(function(output){
                 output.updateAttributes({
-                  status: 'online'
+                  status: 'started'
                 });
               });
             }
@@ -582,10 +564,13 @@ io.sockets.on('connection', function (socket) {
           peer2:peer1
         }
       }).then(function(output){
-        output.updateAttributes({
-          status: status,
-          updatedAt: new Date()
-        });
+        if (output) {
+          output.updateAttributes({
+            status: status,
+            updatedAt: new Date()
+          });
+        }
+        
       });
       
     }
@@ -620,4 +605,14 @@ function calcTime(offset) {
   return nd;
 }
 
+function getRTime(start) {
+  var timeStart = new Date(start);
+  var timeEnd = new Date();
+  var difference = timeEnd.getTime() - timeStart.getTime();
+  var minutesDifference = Math.floor(difference/1000/60);
+  difference -= minutesDifference*1000*60
+  var secondsDifference = Math.floor(difference/1000);
+  var getMin = (4 - minutesDifference) + ':' + (60 - secondsDifference);
 
+  return getMin;  
+}
